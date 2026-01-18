@@ -1,0 +1,8 @@
+{
+  "name": "AllyChat",
+  "description": "A full-featured WhatsApp-inspired communication app with real-time messaging, username-based friend requests, and peer-to-peer video/voice calling using WebRTC and Firebase.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

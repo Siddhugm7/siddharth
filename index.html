@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AllyChat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --wa-header-bg: #1a1a1a;
+      --wa-accent-red: #b91c1c;
+      --wa-message-out-bg: #2d0a0a;
+      --wa-message-in-bg: #262626;
+      --wa-app-bg: #0a0a0a;
+      --wa-chat-bg: #111111;
+      --wa-icon-color: #f0f2f5;
+      --wa-text-primary: #ffffff;
+      --wa-text-secondary: #a3a3a3;
+      --wa-border-color: #262626;
+      --wa-active-tab-indicator: var(--wa-accent-red);
+      --wa-button-color: #dc2626;
+      --wa-link-color: #ef4444;
+      --wa-shadow: rgba(0, 0, 0, 0.5);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%; width: 100%; margin: 0; padding: 0;
+      overflow: hidden; background-color: #000000;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Roboto', sans-serif;
+      color: var(--wa-text-primary);
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+    #app-container {
+      width: 100%; max-width: 450px; height: 100%; max-height: 950px;
+      background: var(--wa-app-bg);
+      box-shadow: 0 10px 40px var(--wa-shadow);
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column;
+      border: 1px solid #1a1a1a;
+    }
+
+    .view { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--wa-app-bg); z-index: 10; transition: transform 0.3s ease; }
+    .view.hidden { transform: translateX(100%); z-index: 1; pointer-events: none; }
+    #auth-view { transform: none; z-index: 20; background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%); }
+    #auth-view.hidden { transform: scale(0.9); opacity: 0; }
+
+    .auth-card { padding: 2.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+    .auth-input { width: 100%; padding: 14px; margin-bottom: 1.25rem; border: 1px solid var(--wa-border-color); border-radius: 10px; outline: none; transition: all 0.2s; background: #1a1a1a; color: white; }
+    .auth-input:focus { border-color: var(--wa-accent-red); box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.2); }
+    .auth-btn { width: 100%; padding: 14px; background: var(--wa-accent-red); color: white; border-radius: 10px; font-weight: 600; cursor: pointer; transition: background 0.2s; border: none; }
+    .auth-btn:hover { background: #991b1b; }
+    
+    .google-btn { width: 100%; padding: 12px; background: white; color: #1f2937; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; transition: background 0.2s; }
+    .google-btn:hover { background: #f3f4f6; }
+
+    .error-msg { color: #f87171; font-size: 0.875rem; margin-bottom: 1rem; display: none; text-align: center; }
+
+    .main-header { background: var(--wa-header-bg); color: white; flex-shrink: 0; border-bottom: 1px solid #262626; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; }
+
+    /* Bottom Navigation Styles */
+    .bottom-nav { 
+      background: var(--wa-header-bg); 
+      color: white; 
+      display: flex; 
+      border-top: 1px solid #262626;
+      height: 60px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 15;
+    }
+    .nav-tab { 
+      flex: 1; 
+      text-align: center; 
+      padding: 12px; 
+      cursor: pointer; 
+      color: var(--wa-text-secondary); 
+      position: relative; 
+      font-weight: 600; 
+      font-size: 0.75rem; 
+      letter-spacing: 0.05em; 
+      transition: color 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-tab.active { color: var(--wa-accent-red); }
+    .nav-tab.active::before { 
+      content: ''; 
+      position: absolute; 
+      top: 0; 
+      left: 15%; 
+      width: 70%; 
+      height: 3px; 
+      background: var(--wa-accent-red); 
+      border-radius: 0 0 3px 3px; 
+    }
+    .badge { 
+      position: absolute; 
+      top: 10px; 
+      right: 20%; 
+      background: var(--wa-accent-red); 
+      color: white; 
+      font-size: 10px; 
+      padding: 2px 6px; 
+      border-radius: 10px; 
+      min-width: 18px; 
+      text-align: center; 
+    }
+
+    /* Floating Action Button (FAB) */
+    .fab {
+      position: absolute;
+      bottom: 80px; /* Above bottom nav */
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      background: var(--wa-accent-red);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(185, 28, 28, 0.4);
+      cursor: pointer;
+      z-index: 20;
+      transition: transform 0.2s, background 0.2s;
+      border: none;
+    }
+    .fab:hover { transform: scale(1.1); background: #991b1b; }
+    .fab:active { transform: scale(0.95); }
+
+    .content-panel { flex: 1; overflow-y: auto; display: none; background: #0a0a0a; }
+    .content-panel.active { display: block; }
+    .list-item { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid #1a1a1a; cursor: pointer; background: #0a0a0a; transition: background 0.2s; }
+    .list-item:hover { background: #141414; }
+    .item-avatar { width: 52px; height: 52px; border-radius: 50%; background: #1f1f1f; border: 1px solid #262626; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 16px; flex-shrink: 0; }
+    .item-details { flex: 1; overflow: hidden; }
+    .item-name { font-weight: 600; color: var(--wa-text-primary); margin-bottom: 2px; }
+    .item-subtext { font-size: 13px; color: var(--wa-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .chat-header { background: var(--wa-header-bg); color: white; display: flex; align-items: center; padding: 10px 16px; flex-shrink: 0; border-bottom: 1px solid #262626; }
+    #chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; background-color: var(--wa-chat-bg); }
+    .chat-bg-pattern { background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23b91c1c' fill-opacity='0.03' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E"); }
+    .message-bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 15px; position: relative; line-height: 1.5; color: white; }
+    .message-sent { align-self: flex-end; background: var(--wa-message-out-bg); border-top-right-radius: 4px; border: 1px solid #450a0a; }
+    .message-received { align-self: flex-start; background: var(--wa-message-in-bg); border-top-left-radius: 4px; border: 1px solid #333; }
+    #chat-input-container { padding: 12px 16px; display: flex; gap: 10px; background: #1a1a1a; align-items: center; border-top: 1px solid #262626; }
+    #chat-input { flex: 1; background: #262626; border-radius: 24px; padding: 12px 18px; border: 1px solid #333; outline: none; color: white; transition: border-color 0.2s; }
+    #chat-input:focus { border-color: var(--wa-accent-red); }
+
+    .call-view { position: absolute; inset: 0; z-index: 100; background: #000; display: none; flex-direction: column; }
+    .call-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 40%, rgba(0,0,0,0.9) 100%); display: flex; flex-direction: column; justify-content: space-between; padding: 60px 24px; pointer-events: none; }
+    .caller-info { text-align: center; color: white; }
+    .call-controls { display: flex; justify-content: center; gap: 40px; pointer-events: auto; padding-bottom: 20px; }
+    .end-call-btn { width: 68px; height: 68px; border-radius: 50%; background: #dc2626; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+    .accept-call-btn { width: 68px; height: 68px; border-radius: 50%; background: #15803d; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+
+    .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+    .modal-content { background: #1a1a1a; border-radius: 20px; padding: 28px; width: 100%; max-width: 340px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .icon-btn { color: #d4d4d4; padding: 8px; transition: color 0.2s; }
+    .icon-btn:hover { color: var(--wa-accent-red); }
+
+    video { width: 100%; height: 100%; object-fit: cover; }
+    #local-video { position: absolute; top: 20px; right: 20px; width: 120px; height: 180px; border-radius: 12px; border: 2px solid var(--wa-accent-red); z-index: 101; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    
+    <!-- Auth View -->
+    <div id="auth-view" class="view">
+      <div class="auth-card">
+        <h1 class="text-4xl font-bold mb-2 text-white">AllyChat</h1>
+        <p class="text-red-500 mb-6 font-medium tracking-widest text-sm uppercase">Secure Connections</p>
+        
+        <div id="login-section" class="w-full">
+          <form id="login-form" class="w-full">
+            <input type="text" id="login-username" class="auth-input" placeholder="Username" required>
+            <input type="password" id="login-password" class="auth-input" placeholder="Password" required>
+            <div id="login-error" class="error-msg">Invalid credentials</div>
+            <button type="submit" class="auth-btn mb-4">Login</button>
+          </form>
+          
+          <div class="flex items-center gap-4 my-4">
+            <div class="flex-1 h-px bg-gray-800"></div>
+            <span class="text-xs text-gray-500 font-bold uppercase">OR</span>
+            <div class="flex-1 h-px bg-gray-800"></div>
+          </div>
+
+          <button id="google-signin-btn" class="google-btn mb-6">
+            <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+            Sign in with Google
+          </button>
+
+          <p class="text-sm text-center text-gray-400">Don't have an account? <a href="#" id="to-signup" class="text-red-500 font-bold">Sign up</a></p>
+        </div>
+
+        <div id="signup-section" style="display: none;" class="w-full">
+          <form id="signup-form" class="w-full">
+            <input type="text" id="signup-username" class="auth-input" placeholder="Choose Username" required>
+            <input type="password" id="signup-password" class="auth-input" placeholder="Choose Password" required>
+            <div id="signup-error" class="error-msg">Username already taken</div>
+            <button type="submit" class="auth-btn mb-4">Sign Up</button>
+          </form>
+          <p class="text-sm text-center text-gray-400">Already have an account? <a href="#" id="to-login" class="text-red-500 font-bold">Login</a></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main View -->
+    <div id="main-view" class="view hidden">
+      <header class="main-header">
+        <div class="header-top">
+          <span class="text-2xl font-bold text-white">AllyChat</span>
+          <button id="menu-btn" class="icon-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12,8c1.1,0,2-0.9,2-2s-0.9-2-2-2s-2,0.9-2,2S10.9,8,12,8z M12,10c-1.1,0-2,0.9-2,2s-0.9,2,2,2s2-0.9,2-2S13.1,10,12,10z M12,16c-1.1,0-2,0.9-2,2s0.9,2,2,2s2-0.9,2-2S13.1,16,12,16z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="main-content" class="flex-1 relative">
+        <div id="home-content" class="content-panel active"></div>
+        <div id="notifications-content" class="content-panel"></div>
+        <div id="calls-content" class="content-panel"></div>
+        
+        <!-- Plus FAB for Adding Friend -->
+        <button id="add-friend-btn" class="fab">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
+      </main>
+
+      <!-- Bottom Nav Bar -->
+      <nav class="bottom-nav">
+        <div id="nav-home" class="nav-tab active">CHATS<span class="badge"></span></div>
+        <div id="nav-notifications" class="nav-tab">UPDATES<span class="badge"></span></div>
+        <div id="nav-calls" class="nav-tab">CALLS<span class="badge"></span></div>
+      </nav>
+    </div>
+
+    <!-- Chat View -->
+    <div id="chat-view" class="view hidden">
+      <header class="chat-header">
+        <button id="chat-back-btn" class="icon-btn mr-2">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20,11H7.83l5.59-5.59L12,4l-8,8l8,8l1.41-1.41L7.83,13H20V11z"/></svg>
+        </button>
+        <div class="item-avatar !w-9 !h-9 !mr-3 text-sm" id="chat-contact-avatar"></div>
+        <div class="flex-1 overflow-hidden">
+          <div class="font-bold truncate text-white" id="chat-contact-name">Name</div>
+          <div class="text-[10px] text-gray-400 uppercase tracking-tighter">Secure Link Active</div>
+        </div>
+        <div class="flex gap-1">
+          <button id="voice-call-btn" class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62,10.79c1.44,2.83,3.76,5.14,6.59,6.59l2.2-2.2c0.27-0.27,0.67-0.36,1.01-0.24c1.12,0.37,2.33,0.57,3.58,0.57c0.55,0,1,0.45,1,1v3.5c0,0.55-0.45,1-1,1c-9.39,0-17-7.61-17-17c0-0.55,0.45-1,1-1H7.5c0.55,0,1,0.45,1,1c0,1.25,0.2,2.45,0.57,3.57c0.11,0.34,0.03,0.74-0.24,1.02L6.62,10.79z"/></svg></button>
+          <button id="video-call-btn" class="icon-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17,10.5V7c0-0.55-0.45-1-1-1H4C3.45,6,3,6.45,3,7v10c0,0.55,0.45,1,1,1h12c0,0.55,0.45-1,1-1v-3.5l4,4v-11L17,10.5z"/></svg></button>
+        </div>
+      </header>
+      <div id="chat-messages" class="chat-bg-pattern"></div>
+      <div id="chat-input-container">
+        <input type="text" id="chat-input" placeholder="Type a message...">
+        <button id="chat-send-btn" class="bg-red-700 text-white rounded-full p-3 shadow-lg">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01,21L23,12L2.01,3L2,10l15,2l-15,2L2.01,21z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Call Views -->
+    <div id="video-call-view" class="call-view">
+      <video id="remote-video" autoplay playsinline></video>
+      <video id="local-video" autoplay playsinline muted></video>
+      <div class="call-overlay">
+        <div class="caller-info">
+          <div class="text-3xl font-bold mb-2" id="v-call-name">Ally</div>
+          <div class="text-xs uppercase tracking-widest text-red-500 font-bold">Secure Video Link</div>
+        </div>
+        <div class="call-controls">
+          <button class="end-call-btn" id="v-end-btn">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12,9c-1.6,0-3.15,0.25-4.6,0.72v3.1c0,0.39-0.23,0.74-0.58,0.9c-0.99,0.49-1.89,1.14-2.68,1.93c-0.21,0.21-0.49,0.33-0.78,0.33c-0.29,0-0.57-0.11-0.78-0.33l-2.25-2.25c-0.21-0.21-0.33-0.49-0.33-0.78c0-0.29,0.11-0.57,0.33-0.78C3.7,8.44,7.66,6,12,6s8.3,2.44,11.66,5.84c0.21,0.21,0.33,0.49,0.33,0.78c0,0.29-0.11,0.57-0.33,0.78l-2.25,2.25c-0.21,0.21-0.49,0.33-0.78,0.33c-0.29,0-0.57-0.11-0.78-0.33c-0.79-0.79-1.69-1.44-2.68-1.93c-0.35-0.16-0.58-0.51-0.58-0.9v-3.1C15.15,9.25,13.6,9,12,9z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="profile-setup-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4 text-white">Complete Profile</h2>
+        <input type="text" id="setup-username-forced" class="auth-input" placeholder="Desired Username" required>
+        <input type="text" id="setup-name" class="auth-input" placeholder="Display Name">
+        <input type="text" id="setup-avatar" class="auth-input" placeholder="Emoji (e.g. 🍒)">
+        <div id="setup-error" class="error-msg">Username is required and must be unique</div>
+        <button id="setup-save-btn" class="auth-btn">Establish Identity</button>
+      </div>
+    </div>
+
+    <div id="add-friend-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4 text-white">Add Ally</h2>
+        <input type="text" id="friend-username-input" class="auth-input" placeholder="Enter Username">
+        <div id="add-friend-error" class="error-msg">User not found</div>
+        <div class="flex gap-3">
+          <button id="add-friend-cancel" class="flex-1 p-3 border border-gray-700 rounded-lg text-gray-400">Cancel</button>
+          <button id="add-friend-confirm" class="flex-1 p-3 bg-red-700 text-white rounded-lg">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="profile-view-modal" class="modal">
+      <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-1 text-white" id="prof-name">Identity</h2>
+        <p class="text-sm text-red-500 font-medium mb-6" id="prof-username">@username</p>
+        <button id="logout-btn" class="w-full p-3 bg-red-800 text-white rounded-lg font-bold mb-3">Logout</button>
+        <button id="prof-close-btn" class="w-full p-3 border border-gray-700 rounded-lg text-gray-400 font-bold">Close</button>
+      </div>
+    </div>
+
+    <div id="incoming-call-modal" class="modal">
+      <div class="modal-content text-center">
+        <div class="item-avatar mx-auto mb-4 !w-16 !h-16 !text-3xl" id="in-call-avatar">📞</div>
+        <h2 class="text-2xl font-bold mb-1 text-white" id="in-call-name">Incoming Call</h2>
+        <p class="text-sm text-red-500 font-bold animate-pulse mb-8">SECURE CONNECTION...</p>
+        <div class="flex gap-6 justify-center">
+          <button id="reject-call-btn" class="end-call-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12,9c-1.6,0-3.15,0.25-4.6,0.72v3.1c0,0.39-0.23,0.74-0.58,0.9c-0.99,0.49-1.89,1.14-2.68,1.93c-0.21,0.21-0.49,0.33-0.78,0.33c-0.29,0-0.57-0.11-0.78-0.33l-2.25-2.25c-0.21-0.21-0.33-0.49-0.33-0.78c0-0.29,0.11-0.57,0.33-0.78C3.7,8.44,7.66,6,12,6s8.3,2.44,11.66,5.84c0.21,0.21,0.33,0.49,0.33,0.78c0,0.29-0.11,0.57-0.33,0.78l-2.25,2.25c-0.21,0.21-0.49,0.33-0.78,0.33c-0.29,0-0.57-0.11-0.78-0.33c-0.79-0.79-1.69-1.44-2.68-1.93c-0.35-0.16-0.58-0.51-0.58-0.9v-3.1C15.15,9.25,13.6,9,12,9z"/></svg></button>
+          <button id="accept-call-btn" class="accept-call-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M20,15.5c-1.25,0-2.45-0.2-3.57-0.57c-0.1-0.03-0.21-0.05-0.31-0.05c-0.26,0-0.51,0.1-0.71,0.29l-2.2,2.2 c-2.83-1.44-5.15-3.75-6.59-6.59l2.2-2.21c0.28-0.26,0.36-0.65,0.25-1C8.7,6.45,8.5,5.25,8.5,4c0-0.55-0.45-1-1-1H4 C3.45,3,3,3.45,3,4c0,9.39,7.61,17,17,17c0.55,0,1-0.45,1-1v-3.5C21,15.95,20.55,15.5,20,15.5z"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <audio id="ringtone" loop src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="></audio>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    // Using your specific Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCRVdZgXp02qs2h2eSpmVYjaJEJC0rrrk",
+      authDomain: "allychat-24415.firebaseapp.com",
+      databaseURL: "https://allychat-24415-default-rtdb.firebaseio.com",
+      projectId: "allychat-24415",
+      storageBucket: "allychat-24415.firebasestorage.app",
+      messagingSenderId: "263158603733",
+      appId: "1:263158603733:web:45807223ae7d379547275c"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let currentUser = null;
+    let currentChatPartner = null;
+    let localStream = null;
+    let peerConnection = null;
+    let activeCallId = null;
+    const ringtone = document.getElementById('ringtone');
+
+    const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    const showView = (id) => {
+      document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    };
+    const showModal = (id) => document.getElementById(id).style.display = 'flex';
+    const hideModal = (id) => document.getElementById(id).style.display = 'none';
+    const showPanel = (id) => {
+      document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      const tab = document.getElementById(`nav-${id.split('-')[0]}`);
+      if (tab) tab.classList.add('active');
+    };
+
+    auth.onAuthStateChanged(async user => {
+      if (user) {
+        currentUser = user;
+        const snapshot = await db.ref(`users/${user.uid}`).once('value');
+        const data = snapshot.val();
+        
+        if (!data || !data.username) {
+          showModal('profile-setup-modal');
+          if (user.displayName) document.getElementById('setup-name').value = user.displayName;
+        } else {
+          initApp();
+        }
+      } else {
+        currentUser = null;
+        showView('auth-view');
+      }
+    });
+
+    document.getElementById('google-signin-btn').onclick = async () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try {
+        await auth.signInWithPopup(provider);
+      } catch (err) {
+        alert("Google check failed: " + err.message);
+      }
+    };
+
+    const usernameToEmail = (username) => `${username.toLowerCase()}@allychat.internal`;
+
+    document.getElementById('login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value;
+      const pass = document.getElementById('login-password').value;
+      try {
+        await auth.signInWithEmailAndPassword(usernameToEmail(username), pass);
+      } catch (err) {
+        document.getElementById('login-error').style.display = 'block';
+      }
+    };
+
+    document.getElementById('signup-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('signup-username').value.toLowerCase().trim();
+      const pass = document.getElementById('signup-password').value;
+      
+      if (!username) return;
+
+      const taken = await db.ref(`usernames/${username}`).once('value');
+      if (taken.exists()) {
+        document.getElementById('signup-error').style.display = 'block';
+        return;
+      }
+
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(usernameToEmail(username), pass);
+        await db.ref(`usernames/${username}`).set(cred.user.uid);
+        await db.ref(`users/${cred.user.uid}`).set({ username, uid: cred.user.uid });
+      } catch (err) {
+        alert("Signup failed: " + err.message);
+      }
+    };
+
+    document.getElementById('setup-save-btn').onclick = async () => {
+      const username = document.getElementById('setup-username-forced').value.toLowerCase().trim();
+      const name = document.getElementById('setup-name').value;
+      const avatar = document.getElementById('setup-avatar').value || '👤';
+      const errorEl = document.getElementById('setup-error');
+      
+      if (!username) {
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const taken = await db.ref(`usernames/${username}`).once('value');
+      if (taken.exists() && taken.val() !== currentUser.uid) {
+        errorEl.textContent = "Alias already claimed.";
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      await db.ref(`usernames/${username}`).set(currentUser.uid);
+      await db.ref(`users/${currentUser.uid}`).update({ username, name, avatar, uid: currentUser.uid });
+      hideModal('profile-setup-modal');
+      initApp();
+    };
+
+    document.getElementById('to-signup').onclick = (e) => {
+      e.preventDefault();
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('signup-section').style.display = 'block';
+    };
+    document.getElementById('to-login').onclick = (e) => {
+      e.preventDefault();
+      document.getElementById('signup-section').style.display = 'none';
+      document.getElementById('login-section').style.display = 'block';
+    };
+
+    function initApp() {
+      showView('main-view');
+      listenToContacts();
+      listenToRequests();
+      listenToIncomingCalls();
+      updateProfileUI();
+    }
+
+    async function updateProfileUI() {
+      const snap = await db.ref(`users/${currentUser.uid}`).once('value');
+      const data = snap.val();
+      if (!data) return;
+      document.getElementById('prof-name').textContent = data.name || 'Anonymous Ally';
+      document.getElementById('prof-username').textContent = `@${data.username}`;
+    }
+
+    document.getElementById('menu-btn').onclick = () => showModal('profile-view-modal');
+    document.getElementById('prof-close-btn').onclick = () => hideModal('profile-view-modal');
+    document.getElementById('logout-btn').onclick = () => auth.signOut();
+
+    document.getElementById('add-friend-btn').onclick = () => showModal('add-friend-modal');
+    document.getElementById('add-friend-cancel').onclick = () => hideModal('add-friend-modal');
+    
+    document.getElementById('add-friend-confirm').onclick = async () => {
+      const targetUsername = document.getElementById('friend-username-input').value.toLowerCase().trim();
+      const errorEl = document.getElementById('add-friend-error');
+      errorEl.style.display = 'none';
+
+      const snap = await db.ref(`usernames/${targetUsername}`).once('value');
+      if (!snap.exists()) {
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const targetUid = snap.val();
+      if (targetUid === currentUser.uid) return hideModal('add-friend-modal');
+
+      const userSnap = await db.ref(`users/${currentUser.uid}`).once('value');
+      const userData = userSnap.val();
+
+      await db.ref(`requests/${targetUid}/${currentUser.uid}`).set({
+        from: currentUser.uid,
+        username: userData.username,
+        name: userData.name || 'Anonymous',
+        timestamp: Date.now()
+      });
+      hideModal('add-friend-modal');
+    };
+
+    function listenToRequests() {
+      db.ref(`requests/${currentUser.uid}`).on('value', snap => {
+        const container = document.getElementById('notifications-content');
+        container.innerHTML = '';
+        const badge = document.getElementById('nav-notifications').querySelector('.badge');
+        let count = 0;
+        
+        snap.forEach(child => {
+          count++;
+          const req = child.val();
+          const item = document.createElement('div');
+          item.className = 'list-item';
+          item.innerHTML = `
+            <div class="item-avatar">🤝</div>
+            <div class="item-details">
+              <div class="item-name">${req.name} (@${req.username})</div>
+              <div class="item-subtext">Requesting Connection</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-bold accept-req" data-uid="${req.from}">Accept</button>
+              <button class="bg-gray-800 text-gray-400 px-3 py-1 rounded-lg text-xs font-bold reject-req" data-uid="${req.from}">Reject</button>
+            </div>
+          `;
+          container.appendChild(item);
+        });
+
+        badge.textContent = count > 0 ? count : '';
+        badge.style.display = count > 0 ? 'block' : 'none';
+
+        container.querySelectorAll('.accept-req').forEach(btn => {
+          btn.onclick = async () => {
+            const otherUid = btn.dataset.uid;
+            await db.ref(`contacts/${currentUser.uid}/${otherUid}`).set(true);
+            await db.ref(`contacts/${otherUid}/${currentUser.uid}`).set(true);
+            await db.ref(`requests/${currentUser.uid}/${otherUid}`).remove();
+          };
+        });
+        container.querySelectorAll('.reject-req').forEach(btn => {
+          btn.onclick = () => db.ref(`requests/${currentUser.uid}/${btn.dataset.uid}`).remove();
+        });
+      });
+    }
+
+    function listenToContacts() {
+      db.ref(`contacts/${currentUser.uid}`).on('value', snap => {
+        const container = document.getElementById('home-content');
+        container.innerHTML = '';
+        snap.forEach(child => {
+          const uid = child.key;
+          db.ref(`users/${uid}`).once('value', uSnap => {
+            const userData = uSnap.val();
+            if (!userData) return;
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+              <div class="item-avatar">${userData.avatar || '👤'}</div>
+              <div class="item-details">
+                <div class="item-name">${userData.name || 'Ally'}</div>
+                <div class="item-subtext">@${userData.username}</div>
+              </div>
+            `;
+            item.onclick = () => openChat(userData);
+            container.appendChild(item);
+          });
+        });
+      });
+    }
+
+    async function openChat(partner) {
+      currentChatPartner = partner;
+      showView('chat-view');
+      document.getElementById('chat-contact-name').textContent = partner.name || 'Ally';
+      document.getElementById('chat-contact-avatar').textContent = partner.avatar || '👤';
+      
+      const chatId = [currentUser.uid, partner.uid].sort().join('_');
+      db.ref(`messages/${chatId}`).off();
+      document.getElementById('chat-messages').innerHTML = '';
+
+      db.ref(`messages/${chatId}`).limitToLast(50).on('child_added', snap => {
+        const msg = snap.val();
+        const bubble = document.createElement('div');
+        bubble.className = `message-bubble ${msg.from === currentUser.uid ? 'message-sent' : 'message-received'}`;
+        bubble.textContent = msg.text;
+        document.getElementById('chat-messages').appendChild(bubble);
+        document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+      });
+    }
+
+    document.getElementById('chat-send-btn').onclick = sendMessage;
+    document.getElementById('chat-input').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !currentChatPartner) return;
+      const chatId = [currentUser.uid, currentChatPartner.uid].sort().join('_');
+      await db.ref(`messages/${chatId}`).push({
+        from: currentUser.uid,
+        text,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+      input.value = '';
+    }
+
+    document.getElementById('chat-back-btn').onclick = () => showView('main-view');
+
+    async function startCall(type) {
+      if (!currentChatPartner) return;
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
+        const viewId = type === 'video' ? 'video-call-view' : 'voice-call-view';
+        document.getElementById(viewId).style.display = 'flex';
+        document.getElementById('v-call-name').textContent = currentChatPartner.name;
+        if (type === 'video') document.getElementById('local-video').srcObject = localStream;
+
+        peerConnection = new RTCPeerConnection(iceConfig);
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.ontrack = (e) => {
+          const remoteEl = type === 'video' ? document.getElementById('remote-video') : document.getElementById('remote-audio');
+          if (remoteEl) remoteEl.srcObject = e.streams[0];
+        };
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        const callRef = db.ref(`calls/${currentChatPartner.uid}`).push();
+        activeCallId = callRef.key;
+        const userSnap = await db.ref(`users/${currentUser.uid}`).once('value');
+        await callRef.set({
+          type,
+          callerUid: currentUser.uid,
+          callerName: userSnap.val().name || 'Ally',
+          offer: { type: offer.type, sdp: offer.sdp },
+          timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        peerConnection.onicecandidate = (e) => {
+          if (e.candidate) db.ref(`iceCandidates/${activeCallId}/caller`).push(e.candidate.toJSON());
+        };
+
+        callRef.on('value', async snap => {
+          const data = snap.val();
+          if (data && data.answer) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+          }
+          if (!data && activeCallId) endCall();
+        });
+
+        db.ref(`iceCandidates/${activeCallId}/receiver`).on('child_added', snap => {
+          peerConnection.addIceCandidate(new RTCIceCandidate(snap.val()));
+        });
+      } catch (err) {
+        alert("Camera/Mic access failed.");
+      }
+    }
+
+    function listenToIncomingCalls() {
+      db.ref(`calls/${currentUser.uid}`).on('child_added', snap => {
+        const data = snap.val();
+        if (activeCallId) return;
+        activeCallId = snap.key;
+        showModal('incoming-call-modal');
+        document.getElementById('in-call-name').textContent = data.callerName;
+
+        document.getElementById('accept-call-btn').onclick = () => acceptCall(data, activeCallId);
+        document.getElementById('reject-call-btn').onclick = () => {
+          db.ref(`calls/${currentUser.uid}/${activeCallId}`).remove();
+          hideModal('incoming-call-modal');
+          activeCallId = null;
+        };
+      });
+    }
+
+    async function acceptCall(data, callId) {
+      hideModal('incoming-call-modal');
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: data.type === 'video', audio: true });
+        const viewId = data.type === 'video' ? 'video-call-view' : 'voice-call-view';
+        document.getElementById(viewId).style.display = 'flex';
+        document.getElementById('v-call-name').textContent = data.callerName;
+        if (data.type === 'video') document.getElementById('local-video').srcObject = localStream;
+
+        peerConnection = new RTCPeerConnection(iceConfig);
+        localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+
+        peerConnection.ontrack = (e) => {
+          const el = data.type === 'video' ? document.getElementById('remote-video') : document.getElementById('remote-audio');
+          if (el) el.srcObject = e.streams[0];
+        };
+
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+
+        await db.ref(`calls/${currentUser.uid}/${callId}`).update({
+          answer: { type: answer.type, sdp: answer.sdp }
+        });
+
+        peerConnection.onicecandidate = (e) => {
+          if (e.candidate) db.ref(`iceCandidates/${callId}/receiver`).push(e.candidate.toJSON());
+        };
+
+        db.ref(`iceCandidates/${callId}/caller`).on('child_added', snap => {
+          peerConnection.addIceCandidate(new RTCIceCandidate(snap.val()));
+        });
+
+        db.ref(`calls/${currentUser.uid}/${callId}`).on('value', snap => {
+          if (!snap.exists()) endCall();
+        });
+      } catch (err) {
+        alert("Accept failed: " + err.message);
+      }
+    }
+
+    function endCall() {
+      if (peerConnection) peerConnection.close();
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      if (activeCallId) {
+        db.ref(`iceCandidates/${activeCallId}`).remove();
+        db.ref(`calls/${currentUser.uid}/${activeCallId}`).remove();
+      }
+      peerConnection = null;
+      localStream = null;
+      activeCallId = null;
+      document.querySelectorAll('.call-view').forEach(v => v.style.display = 'none');
+    }
+
+    document.getElementById('v-end-btn').onclick = endCall;
+    document.getElementById('nav-home').onclick = () => showPanel('home-content');
+    document.getElementById('nav-notifications').onclick = () => showPanel('notifications-content');
+    document.getElementById('nav-calls').onclick = () => showPanel('calls-content');
+
+    // Make sure voice call button works
+    document.getElementById('voice-call-btn').onclick = () => startCall('voice');
+    document.getElementById('video-call-btn').onclick = () => startCall('video');
+
+  </script>
+</body>
+</html>
